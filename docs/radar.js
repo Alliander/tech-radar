@@ -267,25 +267,27 @@ function radar_visualization(config) {
     );
   }
 
-  // draw title and legend (only in print layout)
-  if (config.print_layout) {
 
     // title
+
+  function drawTitle(radar) {
     radar.append("text")
       .attr("transform", translate(title_offset.x, title_offset.y))
       .text(config.title)
       .style("font-family", "Arial, Helvetica")
       .style("font-size", "34");
+  }
 
-    // footer
+  function drawFooter(radar) {
     radar.append("text")
       .attr("transform", translate(footer_offset.x, footer_offset.y))
       .text("▲ moved up     ▼ moved down")
       .attr("xml:space", "preserve")
       .style("font-family", "Arial, Helvetica")
       .style("font-size", "10");
+  }
 
-    // legend
+  function drawLegend(radar) {
     var legend = radar.append("g");
     for (var quadrant = 0; quadrant < 4; quadrant++) {
       legend.append("text")
@@ -314,10 +316,21 @@ function radar_visualization(config) {
               .style("font-family", "Arial, Helvetica")
               .style("font-size", "11")
               .style("cursor", "pointer")
+              .on("click", function() { draw(); })
               .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
               .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
       }
     }
+  }
+
+  function draw(radar) {
+    drawTitle(radar);
+    drawFooter(radar);
+    drawLegend(radar);
+  }
+
+  if (config.print_layout) {
+    draw(radar);
   }
 
   // layer for entries
