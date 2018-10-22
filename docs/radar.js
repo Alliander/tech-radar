@@ -394,8 +394,8 @@ function radar_visualization(config) {
   }
 
   // configure each blip
-  function configureBlips(blips) {
-    blips.each(function(d) {
+  function configureBlips() {
+    _blips.each(function(d) {
       var blip = d3.select(this);
 
       // blip link
@@ -436,18 +436,18 @@ function radar_visualization(config) {
   }
 
   // make sure that blips stay inside their segment
-  function ticked(blips) {
-    blips.attr("transform", function(d) {
+  function ticked() {
+    _blips.attr("transform", function(d) {
       return translate(d.segment.clipx(d), d.segment.clipy(d));
     })
   }
 
-  function distributeBlips(blips) {
+  function distributeBlips(entries) {
     d3.forceSimulation()
-      .nodes(config.entries)
+      .nodes(entries)
       .velocityDecay(0.19) // magic number (found by experimentation)
       .force("collision", d3.forceCollide().radius(12).strength(0.85))
-      .on("tick", ticked(blips));
+      .on("tick", ticked);
   }
 
   function clear(svg) {
@@ -462,8 +462,9 @@ function radar_visualization(config) {
     _seed = 42;
   }
 
-  function draw() {
+  var _blips;
 
+  function draw() {
     // partition entries according to segments
     var segments = new Array(4);
     var svg = d3.select("svg#" + config.svg_id);
@@ -479,7 +480,6 @@ function radar_visualization(config) {
 
     var grid = radar.append("g");
 
-    // _svg.selectAll("*").remove();
     positionEntries(config.entries, config);
     partitionSegments(segments);
     assignIds(segments);
@@ -491,12 +491,12 @@ function radar_visualization(config) {
     drawLegend(segments, radar);
 
     var rink = drawEntries(radar);
-    var blips = drawBlips(segments, rink);
-    configureBlips(blips);
+    _blips = drawBlips(segments, rink);
+    configureBlips();
+    drawBubbles(radar);
 
     // distribute blips, while avoiding collisions
-    distributeBlips(blips);
-    drawBubbles(radar);
+    distributeBlips(config.entries);
   }
 
   if (config.print_layout) {
