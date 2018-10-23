@@ -279,7 +279,61 @@ function radar_visualization(config) {
       .style("font-size", "10");
   }
 
+  // SOURCE: https://stackoverflow.com/a/29202760
+
+  function split(str, size) {
+    const numSplits = Math.ceil(str.length / size);
+    const splits = new Array(numSplits);
+
+    for (let i = 0, o = 0; i < numSplits; ++i, o += size) {
+      splits[i] = str.substr(o, size);
+    }
+
+    return splits;
+  }
+
+  function drawLegendWithDescription(segments, radar, d) {
+
+    // Hacky de hack hack (to add the description under legend item)
+
+    // Absolutely not proud of this but for now it works and it seems to be the fastest way.
+    // Apologies to the person after me that needs to extend it. It might be better to move to:
+    // https://github.com/thoughtworks/build-your-own-radar
+
+    // Anyhow, here we add a description in the legend underneath the element that needs
+    // a description. We look up what element is clicked, then look it up in the
+    // segments, and add a new legend item underneath the one that contains the
+    // description.
+
+    // Done in this way because it is difficult to reposition elements
+    // dynamically in SVG.
+
+    var description = d.description;
+    var clickedQuadrant = d.quadrant;
+    var clickedRing = d.ring;
+    var clickedId = d.id;
+
+    // index of element in quadrant and ring
+    var clickedIdx = segments[clickedQuadrant][clickedRing].indexOf(d);
+
+    // Add the dummy description segment, we filter properties of regular legend
+    // items (like showing a bubble on click) out later based on the
+    // isDescription attribute
+
+    // Add a dummy segment per line of the description
+    const DESCRIPTION_LINE_LENGTH = 20;
+    const splits = split(description, DESCRIPTION_LINE_LENGTH);
+    for (splitIdx = splits.length; splitIdx >= 0; splitIdx--) {
+      let desc = splits[splitIdx];
+      let dummySegment = { isDescription: true, description: desc };
+      segments[clickedQuadrant][clickedRing].splice(clickedIdx+1, 0, dummySegment);
+    }
+
+    drawLegend(segments, radar);
+  }
+
   function drawLegend(segments, radar) {
+
     var legend = radar.append("g");
     for (var quadrant = 0; quadrant < 4; quadrant++) {
       legend.append("text")
@@ -303,14 +357,14 @@ function radar_visualization(config) {
             .append("text")
               .attr("transform", function(d, i) { return legend_transform(segments, quadrant, ring, i); })
               .attr("class", "legend" + quadrant + ring)
-              .attr("id", function(d, i) { return "legendItem" + d.id; })
-              .text(function(d, i) { return d.id + ". " + d.label; })
+              .attr("id", function(d, i) { if (d.isDescription) { return "description" + i; } else { return "legendItem" + d.id; }})
+              .text(function(d, i) { if (d.isDescription) { return d.description; } else { return d.id + ". " + d.label; } })
               .style("font-family", "Arial, Helvetica")
               .style("font-size", "11")
-              .style("cursor", "pointer")
-              .on("click", function() { draw(); })
-              .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
-              .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
+              .style("cursor", function(d) { if (!d.isDescription) return "pointer"; })
+              .on("click", function(d) { if (!d.isDescription) { draw(d); }; })
+              .on("mouseover", function(d) { if (!d.isDescription) { showBubble(d); highlightLegendItem(d); } })
+              .on("mouseout", function(d) { if (!d.isDescription) { hideBubble(d); unhighlightLegendItem(d); } });
       }
     }
   }
@@ -379,7 +433,6 @@ function radar_visualization(config) {
     legendItem.removeAttribute("fill");
   }
 
-  // draw blips on radar
   function drawBlips(segments, rink) {
     var blips = rink.selectAll(".blip")
         .data(config.entries)
@@ -387,7 +440,7 @@ function radar_visualization(config) {
         .append("g")
         .attr("class", "blip")
         .attr("transform", function(d, i) { return legend_transform(segments, d.quadrant, d.ring, i); })
-        .on("click", function(d) { draw(); })
+        .on("click", function(d) { draw(d); })
         .on("mouseover", function(d) { showBubble(d); highlightLegendItem(d); })
         .on("mouseout", function(d) { hideBubble(d); unhighlightLegendItem(d); });
     return blips;
@@ -464,7 +517,10 @@ function radar_visualization(config) {
 
   var _blips;
 
-  function draw() {
+  // If no data d is passed draws svg without description underneath legend
+  // item, otherwise with.
+  function draw(d = null) {
+
     // partition entries according to segments
     var segments = new Array(4);
     var svg = d3.select("svg#" + config.svg_id);
@@ -488,7 +544,12 @@ function radar_visualization(config) {
     drawRings(grid);
     drawTitle(radar);
     drawFooter(radar);
-    drawLegend(segments, radar);
+
+    if (d) {
+      drawLegendWithDescription(segments, radar, d);
+    } else {
+      drawLegend(segments, radar);
+    }
 
     var rink = drawEntries(radar);
     _blips = drawBlips(segments, rink);
