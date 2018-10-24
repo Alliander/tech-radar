@@ -319,13 +319,12 @@ function radar_visualization(config) {
     // Add the dummy description segment, we filter properties of regular legend
     // items (like showing a bubble on click) out later based on the
     // isDescription attribute
-
     // Add a dummy segment per line of the description
     const DESCRIPTION_LINE_LENGTH = 20;
     const splits = split(description, DESCRIPTION_LINE_LENGTH);
     for (splitIdx = splits.length; splitIdx >= 0; splitIdx--) {
       let desc = splits[splitIdx];
-      let dummySegment = { isDescription: true, description: desc };
+      let dummySegment = { isDescription: true, description: desc, descriptionForId: clickedId };
       segments[clickedQuadrant][clickedRing].splice(clickedIdx+1, 0, dummySegment);
     }
 
@@ -356,7 +355,7 @@ function radar_visualization(config) {
           .enter()
             .append("text")
               .attr("transform", function(d, i) { return legend_transform(segments, quadrant, ring, i); })
-              .attr("class", "legend" + quadrant + ring)
+              .attr("class", function(d, i) { if (d.isDescription) { return "description"; } else { return "legend" + quadrant + ring; } })
               .attr("id", function(d, i) { if (d.isDescription) { return "description" + i; } else { return "legendItem" + d.id; }})
               .text(function(d, i) { if (d.isDescription) { return d.description; } else { return d.id + ". " + d.label; } })
               .style("font-family", "Arial, Helvetica")
@@ -510,7 +509,6 @@ function radar_visualization(config) {
       .attr("height", config.height);
   }
 
-  // Otherwise blips do not end up in the same place
   function resetSeed() {
     _seed = 42;
   }
@@ -524,7 +522,14 @@ function radar_visualization(config) {
     // partition entries according to segments
     var segments = new Array(4);
     var svg = d3.select("svg#" + config.svg_id);
+
+    // Hacky de hack #2
+    // Get current description elemnets before clearing SVG...
+
+    var currentDescriptionElements = svg.selectAll(".description").data();
     clear(svg);
+
+    // Otherwise blips do not end up in the same place
     resetSeed();
 
     var radar = svg.append("g");
@@ -546,7 +551,13 @@ function radar_visualization(config) {
     drawFooter(radar);
 
     if (d) {
-      drawLegendWithDescription(segments, radar, d);
+      // check if there already was a description, and for which id.
+      // In the case a clicked item already had a description it needs to be removed
+      if (currentDescriptionElements.length > 0 && currentDescriptionElements[0].descriptionForId === d.id) {
+        drawLegend(segments, radar);
+      } else {
+        drawLegendWithDescription(segments, radar, d);
+      }
     } else {
       drawLegend(segments, radar);
     }
